@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, INTENSITAS, type Intensitas, type Olahraga } from '../db'
+import { db, INTENSITAS, kemas, type Intensitas, type Olahraga } from '../db'
 import { JENIS_OLAHRAGA } from '../lib/daftar'
 import { dariInput, keInputWaktu } from '../lib/tanggal'
 import { Field, FotoInput, inputCls, Pilihan, Sheet, Tombol } from './ui'
@@ -36,8 +36,9 @@ export default function FormOlahraga({ awal, waktuAwal, onTutup }: { awal?: Olah
       catatan: catatan.trim() || undefined,
       foto,
     }
-    if (awal?.id) await db.olahraga.put({ ...data, id: awal.id })
-    else await db.olahraga.add(data)
+    const siap = await kemas(data)
+    if (awal?.id) await db.olahraga.put({ ...siap, id: awal.id })
+    else await db.olahraga.add(siap)
     onTutup()
   }
 

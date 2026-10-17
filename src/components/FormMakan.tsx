@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { db, JENIS_MAKAN, type ItemMakan, type JenisMakan, type Makan } from '../db'
+import { db, JENIS_MAKAN, kemas, type ItemMakan, type JenisMakan, type Makan } from '../db'
 import { MAKANAN_UMUM, type MakananUmum } from '../lib/daftar'
 import { daftarItem } from '../lib/makan'
 import { dariInput, jenisMakanSaatIni, keInputWaktu } from '../lib/tanggal'
@@ -92,8 +92,9 @@ export default function FormMakan({ awal, waktuAwal, onTutup }: { awal?: Makan; 
       catatan: catatan.trim() || undefined,
       foto,
     }
-    if (awal?.id) await db.makan.put({ ...data, id: awal.id })
-    else await db.makan.add(data)
+    const siap = await kemas(data)
+    if (awal?.id) await db.makan.put({ ...siap, id: awal.id })
+    else await db.makan.add(siap)
     onTutup()
   }
 

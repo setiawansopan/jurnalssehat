@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { bacaPengaturan, db, simpanPengaturan, TARGET_MENIT_PEKAN_BAWAAN } from '../db'
+import { bacaPengaturan, db, kemas, simpanPengaturan, TARGET_MENIT_PEKAN_BAWAAN } from '../db'
 import { blobKeDataUrl, dataUrlKeBlob } from '../lib/foto'
 import { rincianMakan } from '../lib/makan'
 import { METRIK_TAMBAHAN } from '../lib/komposisi'
@@ -92,8 +92,8 @@ export default function Lainnya() {
       if (!Array.isArray(d.makan) || !Array.isArray(d.olahraga) || !Array.isArray(d.berat)) throw new Error()
       if (!confirm('Semua data saat ini akan diganti dengan isi cadangan. Lanjutkan?')) return
       const balik = async (x: { foto?: string }) => ({ ...x, foto: x.foto ? await dataUrlKeBlob(x.foto) : undefined })
-      const m = await Promise.all(d.makan.map(balik))
-      const o = await Promise.all(d.olahraga.map(balik))
+      const m = await Promise.all(d.makan.map(async (x: { foto?: string }) => kemas(await balik(x))))
+      const o = await Promise.all(d.olahraga.map(async (x: { foto?: string }) => kemas(await balik(x))))
       await db.transaction('rw', db.makan, db.olahraga, db.berat, async () => {
         await Promise.all([db.makan.clear(), db.olahraga.clear(), db.berat.clear()])
         await db.makan.bulkAdd(m)

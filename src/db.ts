@@ -6,6 +6,12 @@ export type JenisMakan = (typeof JENIS_MAKAN)[number]
 export const INTENSITAS = ['Ringan', 'Sedang', 'Berat'] as const
 export type Intensitas = (typeof INTENSITAS)[number]
 
+// Foto disimpan sebagai data mentah (bukan Blob) karena Blob di IndexedDB bisa hilang di Safari iOS.
+export interface FotoData {
+  buf: ArrayBuffer
+  tipe: string
+}
+
 export interface ItemMakan {
   nama: string
   porsi: string
@@ -22,7 +28,8 @@ export interface Makan {
   items?: ItemMakan[] // rincian satu waktu makan; nama/porsi/kalori di atas adalah ringkasannya
   rasa?: string // lapar / kenyang / dll
   catatan?: string
-  foto?: Blob
+  foto?: Blob // hanya di memori; dibentuk dari fotoData saat dibaca
+  fotoData?: FotoData
 }
 
 export interface Olahraga {
@@ -33,7 +40,8 @@ export interface Olahraga {
   intensitas: Intensitas
   kalori?: number
   catatan?: string
-  foto?: Blob
+  foto?: Blob // hanya di memori; dibentuk dari fotoData saat dibaca
+  fotoData?: FotoData
 }
 
 export interface Berat {
@@ -63,6 +71,49 @@ db.version(1).stores({
   olahraga: '++id, waktu',
   berat: '++id, waktu',
 })
+
+const bacaBuffer = (b: Blob) =>
+  new Promise<ArrayBuffer>((res, rej) => {
+    const r = new FileReader()
+    r.onload = () => res(r.result as ArrayBuffer)
+    r.onerror = () => rej(r.error)
+    r.readAsArrayBuffer(b)
+  })
+
+// Ubah foto (Blob) menjadi data mentah sebelum ditulis ke database.
+export async function kemas<T extends { foto?: Blob; fotoData?: FotoData }>(x: T): Promise<T> {
+  const { foto, fotoData: _lama, ...sisa } = x
+  if (!foto) return sisa as T
+  return { ...sisa, fotoData: { buf: await bacaBuffer(foto), tipe: foto.type || 'image/jpeg' } } as T
+}
+
+// Saat dibaca, bentuk kembali Blob dari data mentah agar mudah ditampilkan.
+const pulihkanFoto = <T extends { foto?: Blob; fotoData?: FotoData }>(o: T): T => {
+  if (o.fotoData) o.foto = new Blob([o.fotoData.buf], { type: o.fotoData.tipe })
+  return o
+}
+db.makan.hook('reading', pulihkanFoto)
+db.olahraga.hook('reading', pulihkanFoto)
+
+// Foto lama yang masih berupa Blob dipindahkan ke format baru selagi masih bisa dibaca.
+export async function migrasiFoto() {
+  for (const x of await db.makan.toArray()) {
+    if (!x.foto || x.fotoData) continue
+    try {
+      await db.makan.put(await kemas(x))
+    } catch {
+      /* Blob sudah tidak terbaca; biarkan */
+    }
+  }
+  for (const x of await db.olahraga.toArray()) {
+    if (!x.foto || x.fotoData) continue
+    try {
+      await db.olahraga.put(await kemas(x))
+    } catch {
+      /* Blob sudah tidak terbaca; biarkan */
+    }
+  }
+}
 
 export interface Pengaturan {
   targetKalori?: number
