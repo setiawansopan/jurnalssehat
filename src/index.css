@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --color-aksen-50: #fff3ed;
+  --color-aksen-100: #ffe2d3;
+  --color-aksen-200: #ffc2a6;
+  --color-aksen-300: #ff9a6e;
+  --color-aksen-400: #ff7238;
+  --color-aksen-500: #fc4c02;
+  --color-aksen-600: #e04300;
+  --color-aksen-700: #b83600;
+  --color-aksen-800: #8f2c08;
+  --color-aksen-900: #6e260b;
+  --color-malam: #17171c;
+  --color-malam-2: #24242c;
+}
+
+:root { color-scheme: light; }
+html, body, #root { height: 100%; }
+body {
+  background: #f1f2f4;
+  color: #18181b;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+input, select, textarea, button { font: inherit; }
+.pt-aman { padding-top: env(safe-area-inset-top); }
+.pb-aman { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Angka besar bergaya papan skor */
+.angka {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.judul-sport {
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+.label-kecil {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+@media print {
+  body { background: #fff; }
+  .no-print, #root { display: none !important; }
+  .laporan { position: static !important; overflow: visible !important; }
+  .laporan-hari { break-inside: avoid; }
+}
