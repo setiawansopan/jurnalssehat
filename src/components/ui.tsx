@@ -105,8 +105,9 @@ export function FotoInput({ foto, onChange }: { foto?: Blob; onChange: (b?: Blob
     setGalat('')
     try {
       onChange(await kompresFoto(f))
-    } catch {
-      setGalat('Foto tidak bisa diproses. Coba foto lain.')
+    } catch (e) {
+      const rinci = e instanceof Error && e.message ? ` (${e.message})` : ''
+      setGalat(`Foto tidak bisa diproses${rinci}. Coba foto lain.`)
     } finally {
       setProses(false)
     }
