@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { bacaPengaturan, db } from '../db'
+import { rincianMakan } from '../lib/makan'
 import { fmt, METRIK_TAMBAHAN } from '../lib/komposisi'
 import { fmtKg, labelPekan, ringkasPekan } from '../lib/pekan'
 import { akhirHari, awalHari, keInputTanggal, labelJam, labelTanggal } from '../lib/tanggal'
@@ -138,7 +139,7 @@ export default function Laporan({ dari, sampai, onTutup }: { dari: number; sampa
                   <Baris
                     key={`m${x.id}`}
                     jam={labelJam(x.waktu)}
-                    judul={`${x.jenis}: ${x.nama}${x.porsi ? ` (${x.porsi})` : ''}${x.kalori ? ` — ${x.kalori} kkal` : ''}`}
+                    judul={`${x.jenis}: ${rincianMakan(x)}${x.kalori && (x.items?.length ?? 1) > 1 ? ` — total ${x.kalori} kkal` : ''}`}
                     catatan={[x.rasa, x.catatan].filter(Boolean).join(' · ')}
                     foto={x.foto}
                   />

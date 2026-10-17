@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { bacaPengaturan, db, simpanPengaturan, TARGET_MENIT_PEKAN_BAWAAN } from '../db'
 import { blobKeDataUrl, dataUrlKeBlob } from '../lib/foto'
+import { rincianMakan } from '../lib/makan'
 import { METRIK_TAMBAHAN } from '../lib/komposisi'
 import { keInputTanggal, labelJam, tambahHari } from '../lib/tanggal'
 import Laporan from './Laporan'
@@ -58,7 +59,7 @@ export default function Lainnya() {
     ]
     const tgl = (w: number) => keInputTanggal(w)
     const urut: { w: number; r: (string | number | undefined)[] }[] = [
-      ...m.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Makan', x.jenis, x.nama, x.porsi, x.kalori, undefined, x.rasa, x.catatan] })),
+      ...m.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Makan', x.jenis, rincianMakan(x), x.porsi, x.kalori, undefined, x.rasa, x.catatan] })),
       ...o.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Olahraga', x.jenis, undefined, `${x.durasi} menit`, x.kalori, undefined, x.intensitas, x.catatan] })),
       ...b.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Berat', undefined, undefined, undefined, undefined, x.kg, undefined, x.catatan, ...METRIK_TAMBAHAN.map((k) => x[k.kunci])] })),
     ].sort((p, q) => p.w - q.w)

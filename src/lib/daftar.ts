@@ -42,6 +42,8 @@ export const MAKANAN_UMUM: MakananUmum[] = [
   { nama: 'Capcay', porsi: '1 porsi', kalori: 150 },
   { nama: 'Tumis kangkung', porsi: '1 porsi', kalori: 90 },
   { nama: 'Lalapan + sambal', porsi: '1 porsi', kalori: 40 },
+  { nama: 'Sambal', porsi: '1 sdm', kalori: 20 },
+  { nama: 'Sayur (tumis/rebus)', porsi: '1 porsi', kalori: 80 },
   { nama: 'Gado-gado', porsi: '1 porsi', kalori: 300 },
   { nama: 'Pecel', porsi: '1 porsi', kalori: 250 },
   { nama: 'Soto ayam (tanpa nasi)', porsi: '1 mangkuk', kalori: 200 },

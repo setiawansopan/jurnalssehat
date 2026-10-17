@@ -6,6 +6,12 @@ export type JenisMakan = (typeof JENIS_MAKAN)[number]
 export const INTENSITAS = ['Ringan', 'Sedang', 'Berat'] as const
 export type Intensitas = (typeof INTENSITAS)[number]
 
+export interface ItemMakan {
+  nama: string
+  porsi: string
+  kalori?: number
+}
+
 export interface Makan {
   id?: number
   waktu: number // epoch ms
@@ -13,6 +19,7 @@ export interface Makan {
   nama: string
   porsi: string
   kalori?: number
+  items?: ItemMakan[] // rincian satu waktu makan; nama/porsi/kalori di atas adalah ringkasannya
   rasa?: string // lapar / kenyang / dll
   catatan?: string
   foto?: Blob

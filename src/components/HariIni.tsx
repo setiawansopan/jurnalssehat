@@ -139,6 +139,7 @@ function KartuItem({ it, edit, tinggi }: { it: Item; edit: PanggilEdit; tinggi?:
   let stat: { label: string; nilai: string | number; satuan?: string }[] = []
   let foto: Blob | undefined
   let catatan: string | undefined
+  let rincian: { nama: string; porsi: string; kalori?: number }[] | undefined
 
   if (it.tipe === 'makan') {
     const d = it.data
@@ -146,9 +147,10 @@ function KartuItem({ it, edit, tinggi }: { it: Item; edit: PanggilEdit; tinggi?:
     sub = d.jenis
     stat = [
       ...(d.kalori ? [{ label: 'Kalori', nilai: d.kalori, satuan: 'kkal' }] : []),
-      ...(d.porsi ? [{ label: 'Porsi', nilai: d.porsi }] : []),
+      ...(d.porsi && !(d.items && d.items.length > 1) ? [{ label: 'Porsi', nilai: d.porsi }] : []),
       ...(d.rasa ? [{ label: 'Rasa', nilai: d.rasa }] : []),
     ]
+    rincian = d.items && d.items.length > 1 ? d.items : undefined
     foto = d.foto
     catatan = d.catatan
   } else if (it.tipe === 'olahraga') {
@@ -200,6 +202,18 @@ function KartuItem({ it, edit, tinggi }: { it: Item; edit: PanggilEdit; tinggi?:
             <Stat key={s.label} {...s} />
           ))}
         </div>
+      )}
+      {rincian && (
+        <ul className="space-y-1 border-t border-zinc-100 px-3.5 py-2.5 text-sm">
+          {rincian.map((i, n) => (
+            <li key={n} className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0">
+                {i.nama} {i.porsi && <span className="text-zinc-400">· {i.porsi}</span>}
+              </span>
+              {i.kalori ? <span className="shrink-0 text-zinc-500">{i.kalori} kkal</span> : null}
+            </li>
+          ))}
+        </ul>
       )}
       {foto && <Foto blob={foto} className="h-48 w-full" />}
       {catatan && <p className="border-t border-zinc-100 px-3.5 py-2.5 text-sm text-zinc-600">{catatan}</p>}
