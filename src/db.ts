@@ -94,6 +94,16 @@ db.version(1).stores({
   berat: '++id, waktu',
 })
 
+db.version(2).stores({
+  makan: '++id, waktu',
+  olahraga: '++id, waktu',
+  berat: '++id, waktu',
+  tidur: '++id, waktu',
+})
+
+// PENTING: semua db.version(...) harus dideklarasikan SEBELUM hook di bawah.
+// Dexie membuat ulang objek tabel tiap versi baru, sehingga hook yang dipasang lebih dulu hilang
+// dan foto tidak akan terbaca (juga hilang saat catatan diubah).
 const bacaBuffer = (b: Blob) =>
   new Promise<ArrayBuffer>((res, rej) => {
     const r = new FileReader()
@@ -136,13 +146,6 @@ export async function migrasiFoto() {
     }
   }
 }
-
-db.version(2).stores({
-  makan: '++id, waktu',
-  olahraga: '++id, waktu',
-  berat: '++id, waktu',
-  tidur: '++id, waktu',
-})
 
 export interface Pengaturan {
   targetKalori?: number
