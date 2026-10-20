@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { bacaPengaturan, db, type Berat, type Makan, type Olahraga } from '../db'
 import { fmt, hitungBmi, labelBmi, METRIK_TAMBAHAN } from '../lib/komposisi'
 import { akhirHari, awalHari, labelJam, labelTanggal, tambahHari } from '../lib/tanggal'
+import { statDetail } from '../lib/olahraga'
 import { Ikon, KATEGORI } from './Ikon'
 import KartuPekan from './KartuPekan'
 import { Foto } from './ui'
@@ -124,7 +125,7 @@ function Stat({ label, nilai, satuan }: { label: string; nilai: string | number;
   return (
     <div className="min-w-0">
       <div className="label-kecil !text-[10px]">{label}</div>
-      <div className={`angka mt-1 break-words pb-0.5 leading-tight ${typeof nilai === 'number' || /^[\d.,±]+$/.test(nilai) ? 'text-xl' : 'text-base'}`}>
+      <div className={`angka mt-1 break-words pb-0.5 leading-tight ${typeof nilai === 'number' || /^[\d.,:±]+$/.test(nilai) ? 'text-xl' : 'text-base'}`}>
         {nilai}
         {satuan && <span className="ml-1 text-xs font-semibold text-zinc-400">{satuan}</span>}
       </div>
@@ -161,6 +162,7 @@ function KartuItem({ it, edit, tinggi }: { it: Item; edit: PanggilEdit; tinggi?:
       { label: 'Durasi', nilai: d.durasi, satuan: 'menit' },
       ...(d.kalori ? [{ label: 'Terbakar', nilai: `±${d.kalori}`, satuan: 'kkal' }] : []),
       { label: 'Intensitas', nilai: d.intensitas },
+      ...statDetail(d),
     ]
     foto = d.foto
     catatan = d.catatan

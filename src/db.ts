@@ -39,6 +39,18 @@ export interface Olahraga {
   durasi: number // menit
   intensitas: Intensitas
   kalori?: number
+  // Detail aktivitas (semua opsional; yang relevan tergantung jenis olahraga)
+  jarak?: number // km
+  langkah?: number
+  detakRata?: number // bpm
+  detakMaks?: number // bpm
+  elevasi?: number // tanjakan kumulatif, m
+  kadensi?: number // langkah atau putaran per menit
+  lap?: number
+  set?: number
+  repetisi?: number
+  beban?: number // kg
+  rpe?: number // tingkat kelelahan 1-10
   catatan?: string
   foto?: Blob // hanya di memori; dibentuk dari fotoData saat dibaca
   fotoData?: FotoData

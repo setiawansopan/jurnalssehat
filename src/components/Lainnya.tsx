@@ -3,6 +3,7 @@ import { bacaPengaturan, db, kemas, simpanPengaturan, TARGET_MENIT_PEKAN_BAWAAN 
 import { blobKeDataUrl, dataUrlKeBlob } from '../lib/foto'
 import { rincianMakan } from '../lib/makan'
 import { METRIK_TAMBAHAN } from '../lib/komposisi'
+import { METRIK_DETAIL } from '../lib/olahraga'
 import { keInputTanggal, labelJam, tambahHari } from '../lib/tanggal'
 import Laporan from './Laporan'
 import { Field, inputCls, Tombol } from './ui'
@@ -55,12 +56,12 @@ export default function Lainnya() {
       db.berat.where('waktu').between(a, z, true, true).toArray(),
     ])
     const baris: (string | number | undefined)[][] = [
-      ['Tanggal', 'Jam', 'Kategori', 'Jenis', 'Keterangan', 'Porsi/Durasi', 'Kalori (kkal)', 'Berat (kg)', 'Rasa/Intensitas', 'Catatan', ...METRIK_TAMBAHAN.map((k) => `${k.label} (${k.satuan})`)],
+      ['Tanggal', 'Jam', 'Kategori', 'Jenis', 'Keterangan', 'Porsi/Durasi', 'Kalori (kkal)', 'Berat (kg)', 'Rasa/Intensitas', 'Catatan', ...METRIK_TAMBAHAN.map((k) => `${k.label} (${k.satuan})`), ...METRIK_DETAIL.map((k) => `${k.label.replace(/ \(.*\)$/, '')} (${k.satuan})`)],
     ]
     const tgl = (w: number) => keInputTanggal(w)
     const urut: { w: number; r: (string | number | undefined)[] }[] = [
       ...m.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Makan', x.jenis, rincianMakan(x), x.porsi, x.kalori, undefined, x.rasa, x.catatan] })),
-      ...o.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Olahraga', x.jenis, undefined, `${x.durasi} menit`, x.kalori, undefined, x.intensitas, x.catatan] })),
+      ...o.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Olahraga', x.jenis, undefined, `${x.durasi} menit`, x.kalori, undefined, x.intensitas, x.catatan, ...METRIK_TAMBAHAN.map(() => undefined), ...METRIK_DETAIL.map((k) => x[k.kunci])] })),
       ...b.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Berat', undefined, undefined, undefined, undefined, x.kg, undefined, x.catatan, ...METRIK_TAMBAHAN.map((k) => x[k.kunci])] })),
     ].sort((p, q) => p.w - q.w)
     urut.forEach((u) => baris.push(u.r))

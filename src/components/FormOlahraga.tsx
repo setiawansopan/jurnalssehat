@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, INTENSITAS, kemas, type Intensitas, type Olahraga } from '../db'
 import { JENIS_OLAHRAGA } from '../lib/daftar'
+import { detailRelevan, METRIK_DETAIL, type KunciDetail } from '../lib/olahraga'
 import { dariInput, keInputWaktu } from '../lib/tanggal'
 import { Field, FotoInput, inputCls, Pilihan, Sheet, Tombol } from './ui'
 
@@ -15,6 +16,9 @@ export default function FormOlahraga({ awal, waktuAwal, onTutup }: { awal?: Olah
   const [intensitas, setIntensitas] = useState<Intensitas>(awal?.intensitas ?? 'Sedang')
   const [kalori, setKalori] = useState(awal?.kalori?.toString() ?? '')
   const [manual, setManual] = useState(!!awal?.kalori)
+  const [detail, setDetail] = useState<Partial<Record<KunciDetail, string>>>(() =>
+    Object.fromEntries(METRIK_DETAIL.filter((m) => awal?.[m.kunci] !== undefined).map((m) => [m.kunci, String(awal![m.kunci]).replace('.', ',')])),
+  )
   const [catatan, setCatatan] = useState(awal?.catatan ?? '')
   const [foto, setFoto] = useState<Blob | undefined>(awal?.foto)
 
@@ -24,6 +28,10 @@ export default function FormOlahraga({ awal, waktuAwal, onTutup }: { awal?: Olah
     const menit = Number(durasi)
     if (menit > 0) setKalori(String(Math.round((met * FAKTOR[intensitas] * beratTerakhir.kg * menit) / 60)))
   }, [manual, beratTerakhir, met, durasi, intensitas])
+
+  // Tampilkan kolom yang relevan untuk jenis ini, ditambah kolom yang sudah terlanjur terisi.
+  const relevan = detailRelevan(jenis)
+  const tampil = METRIK_DETAIL.filter((m) => relevan.includes(m.kunci) || detail[m.kunci])
 
   async function simpan(e: React.FormEvent) {
     e.preventDefault()
@@ -35,6 +43,13 @@ export default function FormOlahraga({ awal, waktuAwal, onTutup }: { awal?: Olah
       kalori: kalori ? Math.round(Number(kalori)) : undefined,
       catatan: catatan.trim() || undefined,
       foto,
+    }
+    // put() menimpa seluruh data, jadi kolom yang dikosongkan ikut terhapus.
+    for (const m of tampil) {
+      const v = parseFloat((detail[m.kunci] ?? '').replace(',', '.'))
+      if (!(v > 0)) continue
+      const bulat = m.desimal === 0 ? Math.round(v) : Math.round(v * 100) / 100
+      data[m.kunci] = m.kunci === 'rpe' ? Math.min(10, Math.max(1, bulat)) : bulat
     }
     const siap = await kemas(data)
     if (awal?.id) await db.olahraga.put({ ...siap, id: awal.id })
@@ -92,6 +107,26 @@ export default function FormOlahraga({ awal, waktuAwal, onTutup }: { awal?: Olah
             }}
           />
         </Field>
+        <details className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3" open={!!awal && METRIK_DETAIL.some((m) => awal[m.kunci] !== undefined)}>
+          <summary className="cursor-pointer select-none text-sm font-bold uppercase tracking-wide text-zinc-700">
+            Detail aktivitas <span className="font-normal normal-case text-zinc-500">· opsional</span>
+            <span className="mt-0.5 block text-xs font-normal normal-case text-zinc-500">{tampil.slice(0, 4).map((m) => m.pendek.toLowerCase()).join(', ')}</span>
+          </summary>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {tampil.map((m) => (
+              <Field key={m.kunci} label={`${m.label}${m.satuan && !m.label.includes('(') ? ` (${m.satuan})` : ''}`}>
+                <input
+                  inputMode="decimal"
+                  className={inputCls}
+                  value={detail[m.kunci] ?? ''}
+                  onChange={(e) => setDetail({ ...detail, [m.kunci]: e.target.value })}
+                />
+              </Field>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-zinc-500">Isi yang tersedia saja, misalnya dari jam tangan atau aplikasi lari. Jarak dalam km (500 m = 0,5).</p>
+        </details>
+
         <FotoInput foto={foto} onChange={setFoto} />
         <Field label="Catatan">
           <textarea rows={2} className={inputCls} value={catatan} onChange={(e) => setCatatan(e.target.value)} />
