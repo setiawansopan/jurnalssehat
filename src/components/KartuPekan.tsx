@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { bacaPengaturan, db } from '../db'
 import { fmt } from '../lib/komposisi'
+import { fmtJamMenit } from '../lib/tidur'
 import { awalPekan, labelPekan, ringkasPekan } from '../lib/pekan'
 import { tambahHari } from '../lib/tanggal'
 import { Ikon } from './Ikon'
@@ -47,7 +48,8 @@ function Cincin({ menit, target }: { menit: number; target: number }) {
 
 // Ringkasan pekan berjalan untuk halaman Jurnal.
 export default function KartuPekan({ onCatatBerat }: { onCatatBerat: () => void }) {
-  const target = bacaPengaturan().targetMenitPekan
+  const pengaturan = bacaPengaturan()
+  const target = pengaturan.targetMenitPekan
   const p = useLiveQuery(async () => (await ringkasPekan(Date.now(), Date.now()))[0])
   if (!p) return null
   const sisa = Math.max(0, target - p.menit)
@@ -74,6 +76,18 @@ export default function KartuPekan({ onCatatBerat }: { onCatatBerat: () => void 
           </div>
         </div>
       </div>
+      <div className="flex items-center justify-between border-t border-zinc-100 px-4 py-2.5 text-sm">
+        {p.tidurRataMenit !== undefined ? (
+          <span className="text-zinc-600">
+            Tidur rata-rata <b className="angka ml-1 text-base">{fmtJamMenit(p.tidurRataMenit)} jam</b>
+            <span className={`ml-2 text-xs font-bold ${p.tidurRataMenit >= pengaturan.targetTidurJam * 60 ? 'text-emerald-600' : 'text-amber-600'}`}>
+              {p.tidurRataMenit >= pengaturan.targetTidurJam * 60 ? '✓ capai target' : `target ${pengaturan.targetTidurJam} jam`}
+            </span>
+          </span>
+        ) : (
+          <span className="text-zinc-600">Belum ada catatan tidur pekan ini</span>
+        )}
+      </div>
       <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-4 py-2.5 text-sm">
         {p.beratAkhir ? (
           <span className="text-zinc-600">
@@ -92,7 +106,8 @@ export default function KartuPekan({ onCatatBerat }: { onCatatBerat: () => void 
 
 // Daftar ringkasan mingguan untuk halaman Progres.
 export function DaftarPekan({ perHalaman = 4 }: { perHalaman?: number }) {
-  const target = bacaPengaturan().targetMenitPekan
+  const pengaturan = bacaPengaturan()
+  const target = pengaturan.targetMenitPekan
   const [halaman, setHalaman] = useState(0) // 0 = paling baru
   const info = useLiveQuery(async () => {
     const pekanIni = awalPekan(Date.now())
@@ -138,6 +153,20 @@ export function DaftarPekan({ perHalaman = 4 }: { perHalaman?: number }) {
                     {selisih > 0 ? '+' : ''}
                     {fmt(selisih)}
                   </span>
+                )}
+              </span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between text-sm">
+              <span className="text-zinc-500">Tidur (rata-rata/hari)</span>
+              <span className="angka text-base">
+                {p.tidurRataMenit !== undefined ? (
+                  <>
+                    {fmtJamMenit(p.tidurRataMenit)}
+                    <span className="ml-1 text-xs font-semibold text-zinc-400">jam</span>
+                    {p.tidurRataMenit >= pengaturan.targetTidurJam * 60 && <span className="ml-2 text-xs font-bold text-emerald-600">✓</span>}
+                  </>
+                ) : (
+                  '–'
                 )}
               </span>
             </div>

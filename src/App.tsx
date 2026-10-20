@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import type { Berat, Makan, Olahraga } from './db'
+import type { Berat, Makan, Olahraga, Tidur } from './db'
 import FormBerat from './components/FormBerat'
 import FormMakan from './components/FormMakan'
 import FormOlahraga from './components/FormOlahraga'
+import FormTidur from './components/FormTidur'
 import HariIni from './components/HariIni'
 import { Ikon, KATEGORI, type NamaIkon } from './components/Ikon'
 import Lainnya from './components/Lainnya'
@@ -15,6 +16,7 @@ type Form =
   | { tipe: 'makan'; data?: Makan }
   | { tipe: 'olahraga'; data?: Olahraga }
   | { tipe: 'berat'; data?: Berat }
+  | { tipe: 'tidur'; data?: Tidur }
 
 const TAB: { id: Tab; ikon: NamaIkon; label: string }[] = [
   { id: 'hari', ikon: 'jurnal', label: 'Jurnal' },
@@ -56,6 +58,7 @@ export default function App() {
               makan: (data) => setForm({ tipe: 'makan', data }),
               olahraga: (data) => setForm({ tipe: 'olahraga', data }),
               berat: (data) => setForm({ tipe: 'berat', data }),
+              tidur: (data) => setForm({ tipe: 'tidur', data }),
             }}
           />
         )}
@@ -100,6 +103,7 @@ export default function App() {
                 ['makan', 'Makan / minum', 'Foto, porsi, kalori'],
                 ['olahraga', 'Olahraga', 'Durasi, intensitas, foto'],
                 ['berat', 'Berat & komposisi', 'Berat, lemak, otot, dll.'],
+                ['tidur', 'Tidur', 'Jam tidur, bangun, kualitas'],
               ] as const
             ).map(([tipe, label, sub]) => (
               <button
@@ -125,6 +129,7 @@ export default function App() {
 
       {form?.tipe === 'makan' && <FormMakan awal={form.data} waktuAwal={waktuBaru()} onTutup={() => setForm(undefined)} />}
       {form?.tipe === 'olahraga' && <FormOlahraga awal={form.data} waktuAwal={waktuBaru()} onTutup={() => setForm(undefined)} />}
+      {form?.tipe === 'tidur' && <FormTidur awal={form.data} waktuAwal={waktuBaru()} onTutup={() => setForm(undefined)} />}
       {form?.tipe === 'berat' && <FormBerat awal={form.data} waktuAwal={waktuBaru()} onTutup={() => setForm(undefined)} />}
     </div>
   )

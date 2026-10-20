@@ -24,6 +24,7 @@ const BENTUK: Record<string, ReactNode> = {
       <path d="M8 10a4 4 0 0 1 8 0M12 10l2.5-2.5" />
     </>
   ),
+  tidur: <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" />,
   tambah: <path d="M12 5v14M5 12h14" />,
   kiri: <path d="m15 6-6 6 6 6" />,
   kanan: <path d="m9 6 6 6-6 6" />,
@@ -58,4 +59,5 @@ export const KATEGORI = {
   makan: { ikon: 'makan', warna: 'bg-emerald-500', teks: 'text-emerald-600', lembut: 'bg-emerald-50' },
   olahraga: { ikon: 'olahraga', warna: 'bg-aksen-500', teks: 'text-aksen-600', lembut: 'bg-aksen-50' },
   berat: { ikon: 'berat', warna: 'bg-indigo-500', teks: 'text-indigo-600', lembut: 'bg-indigo-50' },
+  tidur: { ikon: 'tidur', warna: 'bg-sky-500', teks: 'text-sky-600', lembut: 'bg-sky-50' },
 } as const

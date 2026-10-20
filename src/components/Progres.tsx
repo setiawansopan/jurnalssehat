@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { bacaPengaturan, db } from '../db'
+import { durasiMenit, fmtJamMenit } from '../lib/tidur'
 import { fmt, hitungBmi, labelBmi, METRIK, type KunciMetrik } from '../lib/komposisi'
 import { akhirHari, awalHari, labelPendek, tambahHari } from '../lib/tanggal'
 import { DaftarPekan } from './KartuPekan'
@@ -17,10 +18,11 @@ export default function Progres() {
   const data = useLiveQuery(async () => {
     const dari = awalHari(tambahHari(Date.now(), -(hari - 1)))
     const sampai = akhirHari(Date.now())
-    const [m, o, semuaBerat] = await Promise.all([
+    const [m, o, semuaBerat, daftarTidur] = await Promise.all([
       db.makan.where('waktu').between(dari, sampai, true, true).toArray(),
       db.olahraga.where('waktu').between(dari, sampai, true, true).toArray(),
       db.berat.orderBy('waktu').toArray(),
+      db.tidur.where('waktu').between(dari, sampai, true, true).toArray(),
     ])
     const baris = Array.from({ length: hari }, (_, i) => {
       const t = awalHari(tambahHari(dari, i))
@@ -29,6 +31,7 @@ export default function Progres() {
         label: labelPendek(t),
         masuk: m.filter((x) => dalam(x.waktu)).reduce((s, x) => s + (x.kalori ?? 0), 0),
         menit: o.filter((x) => dalam(x.waktu)).reduce((s, x) => s + x.durasi, 0),
+        tidur: Math.round(daftarTidur.filter((x) => dalam(x.waktu)).reduce((s, x) => s + durasiMenit(x), 0) / 6) / 10, // jam, 1 desimal
       }
     })
     return { baris, semuaBerat, dari, sampai }
@@ -47,6 +50,9 @@ export default function Progres() {
   const totalMenit = data?.baris.reduce((s, x) => s + x.menit, 0) ?? 0
   const hariOlahraga = data?.baris.filter((x) => x.menit > 0).length ?? 0
   const rapat = hari > 14
+  const hariTidur = data?.baris.filter((x) => x.tidur > 0) ?? []
+  const rataTidur = hariTidur.length ? Math.round((hariTidur.reduce((s, x) => s + x.tidur, 0) / hariTidur.length) * 60) : 0
+  const hariCapai = hariTidur.filter((x) => x.tidur >= pengaturan.targetTidurJam).length
   const terakhir = semua[semua.length - 1]
   const bmi = terakhir ? hitungBmi(terakhir.kg, pengaturan.tinggi) : undefined
 
@@ -158,6 +164,32 @@ export default function Progres() {
               <Bar dataKey="masuk" fill="#10b981" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        )}
+      </Kartu>
+
+      <Kartu judul="Tidur per hari (jam)">
+        {hariTidur.length === 0 ? (
+          <Kosong />
+        ) : (
+          <>
+            <p className="mb-2 text-sm text-zinc-600">
+              Rata-rata <b className="angka text-base">{fmtJamMenit(rataTidur)} jam</b> per hari ·{' '}
+              <span className="font-semibold">
+                {hariCapai} dari {hariTidur.length} hari
+              </span>{' '}
+              capai target {pengaturan.targetTidurJam} jam
+            </p>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={data?.baris} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={WARNA.grid} />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={rapat ? Math.floor(hari / 6) : 'preserveStartEnd'} />
+                <YAxis tick={{ fontSize: 11 }} domain={[0, (max: number) => Math.max(Math.ceil(max), pengaturan.targetTidurJam + 1)]} />
+                <Tooltip formatter={(v) => [`${v} jam`, 'Tidur']} />
+                <ReferenceLine y={pengaturan.targetTidurJam} stroke={WARNA.hijau} strokeDasharray="4 4" label={{ value: 'Target', fontSize: 11, fill: WARNA.hijau }} />
+                <Bar dataKey="tidur" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </>
         )}
       </Kartu>
 

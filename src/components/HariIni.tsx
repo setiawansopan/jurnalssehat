@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { bacaPengaturan, db, type Berat, type Makan, type Olahraga } from '../db'
+import { bacaPengaturan, db, type Berat, type Makan, type Olahraga, type Tidur } from '../db'
 import { fmt, hitungBmi, labelBmi, METRIK_TAMBAHAN } from '../lib/komposisi'
 import { akhirHari, awalHari, labelJam, labelTanggal, tambahHari } from '../lib/tanggal'
 import { statDetail } from '../lib/olahraga'
+import { durasiMenit, fmtJamMenit, KUALITAS_TIDUR } from '../lib/tidur'
 import { Ikon, KATEGORI } from './Ikon'
 import KartuPekan from './KartuPekan'
 import { Foto } from './ui'
@@ -12,11 +13,13 @@ type Item =
   | { tipe: 'makan'; waktu: number; data: Makan }
   | { tipe: 'olahraga'; waktu: number; data: Olahraga }
   | { tipe: 'berat'; waktu: number; data: Berat }
+  | { tipe: 'tidur'; waktu: number; data: Tidur }
 
 export interface PanggilEdit {
   makan: (d: Makan) => void
   olahraga: (d: Olahraga) => void
   berat: (d?: Berat) => void
+  tidur: (d: Tidur) => void
 }
 
 export default function HariIni({ hari, setHari, edit }: { hari: number; setHari: (t: number) => void; edit: PanggilEdit }) {
@@ -24,12 +27,13 @@ export default function HariIni({ hari, setHari, edit }: { hari: number; setHari
   const data = useLiveQuery(async () => {
     const dari = awalHari(hari)
     const sampai = akhirHari(hari)
-    const [m, o, b] = await Promise.all([
+    const [m, o, b, t] = await Promise.all([
       db.makan.where('waktu').between(dari, sampai, true, true).toArray(),
       db.olahraga.where('waktu').between(dari, sampai, true, true).toArray(),
       db.berat.where('waktu').between(dari, sampai, true, true).sortBy('waktu'),
+      db.tidur.where('waktu').between(dari, sampai, true, true).toArray(),
     ])
-    return { m, o, b }
+    return { m, o, b, t }
   }, [hari])
 
   const adalahHariIni = awalHari(hari) === awalHari(Date.now())
@@ -38,6 +42,7 @@ export default function HariIni({ hari, setHari, edit }: { hari: number; setHari
         ...data.m.map((d) => ({ tipe: 'makan' as const, waktu: d.waktu, data: d })),
         ...data.o.map((d) => ({ tipe: 'olahraga' as const, waktu: d.waktu, data: d })),
         ...data.b.map((d) => ({ tipe: 'berat' as const, waktu: d.waktu, data: d })),
+        ...data.t.map((d) => ({ tipe: 'tidur' as const, waktu: d.waktu, data: d })),
       ].sort((a, b) => a.waktu - b.waktu)
     : []
 
@@ -45,6 +50,8 @@ export default function HariIni({ hari, setHari, edit }: { hari: number; setHari
   const keluar = data?.o.reduce((s, x) => s + (x.kalori ?? 0), 0) ?? 0
   const menit = data?.o.reduce((s, x) => s + x.durasi, 0) ?? 0
   const berat = data?.b.length ? data.b[data.b.length - 1].kg : undefined
+  const tidurMenit = data?.t.reduce((s, x) => s + durasiMenit(x), 0) ?? 0
+  const targetTidurMenit = pengaturan.targetTidurJam * 60
   const persenKalori = pengaturan.targetKalori ? Math.min(100, Math.round((masuk / pengaturan.targetKalori) * 100)) : undefined
   const lewatTarget = pengaturan.targetKalori ? masuk > pengaturan.targetKalori : false
 
@@ -74,7 +81,7 @@ export default function HariIni({ hari, setHari, edit }: { hari: number; setHari
           <Skor judul="Olahraga" nilai={menit} satuan="menit" aksen />
           <Skor judul="Berat" nilai={berat !== undefined ? fmt(berat) : '–'} satuan="kg" />
         </div>
-        {(persenKalori !== undefined || keluar > 0) && (
+        {(persenKalori !== undefined || keluar > 0 || tidurMenit > 0) && (
           <div className="mt-4 space-y-2">
             {persenKalori !== undefined && (
               <div>
@@ -87,6 +94,16 @@ export default function HariIni({ hari, setHari, edit }: { hari: number; setHari
               </div>
             )}
             {keluar > 0 && <div className="text-xs text-white/60">±{keluar} kkal terbakar dari olahraga</div>}
+            {tidurMenit > 0 && (
+              <div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/15">
+                  <div className={`h-full rounded-full ${tidurMenit >= targetTidurMenit ? 'bg-sky-400' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, Math.round((tidurMenit / targetTidurMenit) * 100))}%` }} />
+                </div>
+                <div className="mt-1 text-xs text-white/60">
+                  Tidur {fmtJamMenit(tidurMenit)} jam · target {pengaturan.targetTidurJam} jam
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -166,6 +183,16 @@ function KartuItem({ it, edit, tinggi }: { it: Item; edit: PanggilEdit; tinggi?:
     ]
     foto = d.foto
     catatan = d.catatan
+  } else if (it.tipe === 'tidur') {
+    const d = it.data
+    judul = 'Tidur'
+    sub = d.kualitas ? `Kualitas ${KUALITAS_TIDUR[d.kualitas - 1].toLowerCase()}` : 'Bangun'
+    stat = [
+      { label: 'Durasi', nilai: fmtJamMenit(durasiMenit(d)), satuan: 'jam' },
+      { label: 'Mulai', nilai: labelJam(d.mulai) },
+      { label: 'Bangun', nilai: labelJam(d.selesai) },
+    ]
+    catatan = d.catatan
   } else {
     const d = it.data
     const bmi = hitungBmi(d.kg, tinggi)
@@ -182,6 +209,7 @@ function KartuItem({ it, edit, tinggi }: { it: Item; edit: PanggilEdit; tinggi?:
   function buka() {
     if (it.tipe === 'makan') edit.makan(it.data)
     else if (it.tipe === 'olahraga') edit.olahraga(it.data)
+    else if (it.tipe === 'tidur') edit.tidur(it.data)
     else edit.berat(it.data)
   }
 

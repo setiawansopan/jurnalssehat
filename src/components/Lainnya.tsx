@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
-import { bacaPengaturan, db, kemas, simpanPengaturan, TARGET_MENIT_PEKAN_BAWAAN } from '../db'
+import { bacaPengaturan, db, kemas, simpanPengaturan, TARGET_MENIT_PEKAN_BAWAAN, TARGET_TIDUR_JAM_BAWAAN } from '../db'
 import { blobKeDataUrl, dataUrlKeBlob } from '../lib/foto'
 import { rincianMakan } from '../lib/makan'
 import { METRIK_TAMBAHAN } from '../lib/komposisi'
 import { METRIK_DETAIL } from '../lib/olahraga'
+import { durasiMenit, fmtDurasiPanjang, KUALITAS_TIDUR } from '../lib/tidur'
 import { keInputTanggal, labelJam, tambahHari } from '../lib/tanggal'
 import Laporan from './Laporan'
 import { Field, inputCls, Tombol } from './ui'
@@ -24,6 +25,7 @@ const csvSel = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
 export default function Lainnya() {
   const awal = bacaPengaturan()
   const [targetMenit, setTargetMenit] = useState(awal.targetMenitPekan.toString())
+  const [targetTidur, setTargetTidur] = useState(awal.targetTidurJam.toString().replace('.', ','))
   const [tinggi, setTinggi] = useState(awal.tinggi?.toString() ?? '')
   const [targetKalori, setTargetKalori] = useState(awal.targetKalori?.toString() ?? '')
   const [targetBerat, setTargetBerat] = useState(awal.targetBerat?.toString() ?? '')
@@ -40,6 +42,7 @@ export default function Lainnya() {
     e.preventDefault()
     simpanPengaturan({
       targetMenitPekan: Number(targetMenit) || TARGET_MENIT_PEKAN_BAWAAN,
+      targetTidurJam: parseFloat(targetTidur.replace(',', '.')) || TARGET_TIDUR_JAM_BAWAAN,
       tinggi: parseFloat(tinggi.replace(',', '.')) || undefined,
       targetKalori: Number(targetKalori) || undefined,
       targetBerat: parseFloat(targetBerat.replace(',', '.')) || undefined,
@@ -50,10 +53,11 @@ export default function Lainnya() {
 
   async function unduhCsv() {
     const { a, z } = rentang()
-    const [m, o, b] = await Promise.all([
+    const [m, o, b, t] = await Promise.all([
       db.makan.where('waktu').between(a, z, true, true).toArray(),
       db.olahraga.where('waktu').between(a, z, true, true).toArray(),
       db.berat.where('waktu').between(a, z, true, true).toArray(),
+      db.tidur.where('waktu').between(a, z, true, true).toArray(),
     ])
     const baris: (string | number | undefined)[][] = [
       ['Tanggal', 'Jam', 'Kategori', 'Jenis', 'Keterangan', 'Porsi/Durasi', 'Kalori (kkal)', 'Berat (kg)', 'Rasa/Intensitas', 'Catatan', ...METRIK_TAMBAHAN.map((k) => `${k.label} (${k.satuan})`), ...METRIK_DETAIL.map((k) => `${k.label.replace(/ \(.*\)$/, '')} (${k.satuan})`)],
@@ -63,6 +67,7 @@ export default function Lainnya() {
       ...m.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Makan', x.jenis, rincianMakan(x), x.porsi, x.kalori, undefined, x.rasa, x.catatan] })),
       ...o.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Olahraga', x.jenis, undefined, `${x.durasi} menit`, x.kalori, undefined, x.intensitas, x.catatan, ...METRIK_TAMBAHAN.map(() => undefined), ...METRIK_DETAIL.map((k) => x[k.kunci])] })),
       ...b.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Berat', undefined, undefined, undefined, undefined, x.kg, undefined, x.catatan, ...METRIK_TAMBAHAN.map((k) => x[k.kunci])] })),
+      ...t.map((x) => ({ w: x.waktu, r: [tgl(x.waktu), labelJam(x.waktu), 'Tidur', undefined, `${labelJam(x.mulai)} - ${labelJam(x.selesai)}`, fmtDurasiPanjang(durasiMenit(x)), undefined, undefined, x.kualitas ? KUALITAS_TIDUR[x.kualitas - 1] : undefined, x.catatan] })),
     ].sort((p, q) => p.w - q.w)
     urut.forEach((u) => baris.push(u.r))
     const isi = '﻿' + baris.map((r) => r.map(csvSel).join(',')).join('\r\n')
@@ -70,15 +75,16 @@ export default function Lainnya() {
   }
 
   async function cadangkan() {
-    const [m, o, b] = await Promise.all([db.makan.toArray(), db.olahraga.toArray(), db.berat.toArray()])
+    const [m, o, b, t] = await Promise.all([db.makan.toArray(), db.olahraga.toArray(), db.berat.toArray(), db.tidur.toArray()])
     const ubah = async <T extends { foto?: Blob }>(x: T) => ({ ...x, foto: x.foto ? await blobKeDataUrl(x.foto) : undefined })
     const json = JSON.stringify({
-      versi: 1,
+      versi: 2,
       dibuat: new Date().toISOString(),
       pengaturan: bacaPengaturan(),
       makan: await Promise.all(m.map(ubah)),
       olahraga: await Promise.all(o.map(ubah)),
       berat: b,
+      tidur: t,
     })
     unduh(`cadangan-jurnal-sehat_${keInputTanggal(Date.now())}.json`, new Blob([json], { type: 'application/json' }))
     setPesan('Cadangan diunduh. Simpan berkasnya di tempat aman (mis. Google Drive / iCloud).')
@@ -95,11 +101,13 @@ export default function Lainnya() {
       const balik = async (x: { foto?: string }) => ({ ...x, foto: x.foto ? await dataUrlKeBlob(x.foto) : undefined })
       const m = await Promise.all(d.makan.map(async (x: { foto?: string }) => kemas(await balik(x))))
       const o = await Promise.all(d.olahraga.map(async (x: { foto?: string }) => kemas(await balik(x))))
-      await db.transaction('rw', db.makan, db.olahraga, db.berat, async () => {
-        await Promise.all([db.makan.clear(), db.olahraga.clear(), db.berat.clear()])
+      const t = Array.isArray(d.tidur) ? d.tidur : [] // cadangan lama belum punya data tidur
+      await db.transaction('rw', db.makan, db.olahraga, db.berat, db.tidur, async () => {
+        await Promise.all([db.makan.clear(), db.olahraga.clear(), db.berat.clear(), db.tidur.clear()])
         await db.makan.bulkAdd(m)
         await db.olahraga.bulkAdd(o)
         await db.berat.bulkAdd(d.berat)
+        await db.tidur.bulkAdd(t)
       })
       if (d.pengaturan) simpanPengaturan(d.pengaturan)
       setPesan('Data berhasil dipulihkan.')
@@ -134,6 +142,9 @@ export default function Lainnya() {
 
       <Bagian judul="Target (opsional)">
         <form onSubmit={simpanTarget} className="space-y-3">
+          <Field label="Tidur per malam (jam)" hint="Bawaan 7 jam. Ubah sesuai anjuran dokter.">
+            <input required inputMode="decimal" className={inputCls} value={targetTidur} onChange={(e) => setTargetTidur(e.target.value)} />
+          </Field>
           <Field label="Olahraga per pekan (menit)" hint="Bawaan 150 menit sesuai anjuran dokter. Ubah kapan saja jika target dinaikkan.">
             <input required inputMode="numeric" className={inputCls} value={targetMenit} onChange={(e) => setTargetMenit(e.target.value.replace(/[^\d]/g, ''))} />
           </Field>

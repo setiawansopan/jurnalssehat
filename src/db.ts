@@ -72,10 +72,20 @@ export interface Berat {
   catatan?: string
 }
 
+export interface Tidur {
+  id?: number
+  mulai: number // epoch ms, saat mulai tidur
+  selesai: number // epoch ms, saat bangun
+  waktu: number // = selesai; dipakai untuk urutan dan penentuan hari
+  kualitas?: number // 1-5
+  catatan?: string
+}
+
 export const db = new Dexie('jurnal-sehat') as Dexie & {
   makan: EntityTable<Makan, 'id'>
   olahraga: EntityTable<Olahraga, 'id'>
   berat: EntityTable<Berat, 'id'>
+  tidur: EntityTable<Tidur, 'id'>
 }
 
 db.version(1).stores({
@@ -127,22 +137,35 @@ export async function migrasiFoto() {
   }
 }
 
+db.version(2).stores({
+  makan: '++id, waktu',
+  olahraga: '++id, waktu',
+  berat: '++id, waktu',
+  tidur: '++id, waktu',
+})
+
 export interface Pengaturan {
   targetKalori?: number
   targetBerat?: number
   targetMenitPekan: number
+  targetTidurJam: number
   tinggi?: number // cm, untuk menghitung BMI
 }
 
+export const TARGET_TIDUR_JAM_BAWAAN = 7
 export const TARGET_MENIT_PEKAN_BAWAAN = 150 // anjuran dokter; bisa diubah di Lainnya
 
 const KEY = 'jurnal-sehat:pengaturan'
 export function bacaPengaturan(): Pengaturan {
   try {
     const p = JSON.parse(localStorage.getItem(KEY) || '{}')
-    return { ...p, targetMenitPekan: p.targetMenitPekan > 0 ? p.targetMenitPekan : TARGET_MENIT_PEKAN_BAWAAN }
+    return {
+      ...p,
+      targetMenitPekan: p.targetMenitPekan > 0 ? p.targetMenitPekan : TARGET_MENIT_PEKAN_BAWAAN,
+      targetTidurJam: p.targetTidurJam > 0 ? p.targetTidurJam : TARGET_TIDUR_JAM_BAWAAN,
+    }
   } catch {
-    return { targetMenitPekan: TARGET_MENIT_PEKAN_BAWAAN }
+    return { targetMenitPekan: TARGET_MENIT_PEKAN_BAWAAN, targetTidurJam: TARGET_TIDUR_JAM_BAWAAN }
   }
 }
 export function simpanPengaturan(p: Pengaturan) {

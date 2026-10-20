@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { bacaPengaturan, db } from '../db'
 import { rincianMakan } from '../lib/makan'
+import { durasiMenit, fmtDurasiPanjang, fmtJamMenit, KUALITAS_TIDUR } from '../lib/tidur'
 import { fmt, METRIK_TAMBAHAN } from '../lib/komposisi'
 import { teksDetail } from '../lib/olahraga'
 import { fmtKg, labelPekan, ringkasPekan } from '../lib/pekan'
@@ -12,14 +13,15 @@ export default function Laporan({ dari, sampai, onTutup }: { dari: number; sampa
   const d = useLiveQuery(async () => {
     const a = awalHari(dari)
     const z = akhirHari(sampai)
-    const [m, o, b] = await Promise.all([
+    const [m, o, b, t] = await Promise.all([
       db.makan.where('waktu').between(a, z, true, true).sortBy('waktu'),
       db.olahraga.where('waktu').between(a, z, true, true).sortBy('waktu'),
       db.berat.where('waktu').between(a, z, true, true).sortBy('waktu'),
+      db.tidur.where('waktu').between(a, z, true, true).sortBy('waktu'),
     ])
-    const hariSet = new Set([...m, ...o, ...b].map((x) => awalHari(x.waktu)))
+    const hariSet = new Set([...m, ...o, ...b, ...t].map((x) => awalHari(x.waktu)))
     const pekan = await ringkasPekan(a, z)
-    return { m, o, b, pekan, hari: [...hariSet].sort((x, y) => x - y) }
+    return { m, o, b, t, pekan, hari: [...hariSet].sort((x, y) => x - y) }
   }, [dari, sampai])
 
   if (!d) return null
@@ -30,6 +32,9 @@ export default function Laporan({ dari, sampai, onTutup }: { dari: number; sampa
   const totalMasuk = d.m.reduce((s, x) => s + (x.kalori ?? 0), 0)
   const rata = hariMakan.size ? Math.round(totalMasuk / hariMakan.size) : 0
   const totalMenit = d.o.reduce((s, x) => s + x.durasi, 0)
+  const pengaturan = bacaPengaturan()
+  const hariTidur = new Set(d.t.map((x) => awalHari(x.waktu))).size
+  const rataTidur = hariTidur ? Math.round(d.t.reduce((s, x) => s + durasiMenit(x), 0) / hariTidur) : 0
   const totalLangkah = d.o.reduce((s, x) => s + (x.langkah ?? 0), 0)
   const totalJarak = Math.round(d.o.reduce((s, x) => s + (x.jarak ?? 0), 0) * 100) / 100
 
@@ -60,6 +65,12 @@ export default function Laporan({ dari, sampai, onTutup }: { dari: number; sampa
               <Sel k="Total olahraga" v={`${totalMenit} menit (${new Set(d.o.map((x) => awalHari(x.waktu))).size} hari)`} />
               <Sel k="Hari tercatat" v={`${d.hari.length} hari`} />
             </tr>
+            {d.t.length > 0 && (
+              <tr>
+                <Sel k="Rata-rata tidur per hari" v={`${fmtDurasiPanjang(rataTidur)} (${hariTidur} hari)`} />
+                <Sel k="Target tidur" v={`${pengaturan.targetTidurJam} jam`} />
+              </tr>
+            )}
             {(totalLangkah > 0 || totalJarak > 0) && (
               <tr>
                 <Sel k="Total langkah (yang dicatat)" v={totalLangkah ? fmt(totalLangkah, 0) : '–'} />
@@ -110,6 +121,7 @@ export default function Laporan({ dari, sampai, onTutup }: { dari: number; sampa
                   <th className="border border-zinc-300 p-1.5">Pekan</th>
                   <th className="border border-zinc-300 p-1.5">Berat (rata-rata)</th>
                   <th className="border border-zinc-300 p-1.5">Olahraga (target {target} mnt)</th>
+                  <th className="border border-zinc-300 p-1.5">Tidur (rata-rata)</th>
                 </tr>
               </thead>
               <tbody>
@@ -120,6 +132,7 @@ export default function Laporan({ dari, sampai, onTutup }: { dari: number; sampa
                     <td className="border border-zinc-300 p-1.5">
                       {p.menit} menit ({p.hariOlahraga} hari) {p.menit >= target ? '✓' : ''}
                     </td>
+                    <td className="border border-zinc-300 p-1.5">{p.tidurRataMenit !== undefined ? `${fmtJamMenit(p.tidurRataMenit)} jam` : '–'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -133,6 +146,8 @@ export default function Laporan({ dari, sampai, onTutup }: { dari: number; sampa
           const m = d.m.filter((x) => awalHari(x.waktu) === h)
           const o = d.o.filter((x) => awalHari(x.waktu) === h)
           const b = d.b.filter((x) => awalHari(x.waktu) === h)
+          const t = d.t.filter((x) => awalHari(x.waktu) === h)
+          const menitTidur = t.reduce((s, x) => s + durasiMenit(x), 0)
           const kal = m.reduce((s, x) => s + (x.kalori ?? 0), 0)
           const menit = o.reduce((s, x) => s + x.durasi, 0)
 
@@ -144,6 +159,13 @@ export default function Laporan({ dari, sampai, onTutup }: { dari: number; sampa
               kategori: 'Berat' as const,
               judul: `Berat badan ${fmt(x.kg)} kg`,
               catatan: [METRIK_TAMBAHAN.filter((k) => x[k.kunci] !== undefined).map((k) => `${k.pendek} ${fmt(x[k.kunci]!, k.desimal)} ${k.satuan}`).join(' · '), x.catatan].filter(Boolean).join(' — '),
+            })),
+            ...t.map((x) => ({
+              kunci: `t${x.id}`,
+              waktu: x.waktu,
+              kategori: 'Tidur' as const,
+              judul: `Tidur ${fmtDurasiPanjang(durasiMenit(x))} (${labelJam(x.mulai)} → ${labelJam(x.selesai)})`,
+              catatan: [x.kualitas ? `kualitas ${KUALITAS_TIDUR[x.kualitas - 1].toLowerCase()} (${x.kualitas}/5)` : '', x.catatan].filter(Boolean).join(' — '),
             })),
             ...m.map((x) => ({
               kunci: `m${x.id}`,
@@ -168,7 +190,7 @@ export default function Laporan({ dari, sampai, onTutup }: { dari: number; sampa
               <h2 className="border-b-2 border-aksen-600 pb-1 text-base font-bold">
                 {labelTanggal(h)}
                 <span className="ml-2 text-sm font-normal text-zinc-600">
-                  {[kal ? `${kal} kkal masuk` : '', menit ? `${menit} menit olahraga` : ''].filter(Boolean).join(' · ')}
+                  {[kal ? `${kal} kkal masuk` : '', menit ? `${menit} menit olahraga` : '', menitTidur ? `tidur ${fmtJamMenit(menitTidur)} jam` : ''].filter(Boolean).join(' · ')}
                 </span>
               </h2>
               <div className="mt-1 divide-y divide-zinc-200">
@@ -195,7 +217,7 @@ const Sel = ({ k, v }: { k: string; v: string }) => (
 interface Entri {
   kunci: string
   waktu: number
-  kategori: 'Makan' | 'Olahraga' | 'Berat'
+  kategori: 'Makan' | 'Olahraga' | 'Berat' | 'Tidur'
   judul: string
   catatan?: string
   foto?: Blob
@@ -205,6 +227,7 @@ const WARNA_KATEGORI = {
   Makan: 'text-emerald-700 border-emerald-600',
   Olahraga: 'text-aksen-700 border-aksen-600',
   Berat: 'text-indigo-700 border-indigo-600',
+  Tidur: 'text-sky-700 border-sky-600',
 } as const
 
 function Baris({ waktu, kategori, judul, catatan, foto }: Entri) {
